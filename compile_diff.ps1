@@ -73,7 +73,7 @@ if (Test-Path $ProgressFolder -PathType Container) {
             & .\compile.ps1 -FileName $New -Cleanup
 
             Write-Output "`nGenerating diff documents $Diff.tex and $Diff.pdf from $Old.tex`n"
-            latexdiff "$Old.tex" "$New.tex" > "$Diff.tex"
+            latexdiff -t CTRADITIONAL "$Old.tex" "$New.tex" > "$Diff.tex"
             & .\compile.ps1 -FileName $Diff -Cleanup
             
             Write-Output "`nMoving $New and $Diff .tex and .pdf files to $ProgressFolder folder, renamed to $NewName and $DiffName"

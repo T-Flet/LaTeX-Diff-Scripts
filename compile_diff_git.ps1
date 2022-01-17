@@ -44,5 +44,5 @@ git checkout -f $Branch
 git stash apply
 
 Write-Output "`nGenerating diff documents $Diff.tex and $Diff.pdf`n"
-latexdiff "$Old.tex" "$New.tex" > "$Diff.tex"
+latexdiff -t CTRADITIONAL "$Old.tex" "$New.tex" > "$Diff.tex"
 & .\compile.ps1 -FileName $Diff -Cleanup -ShowPdf
