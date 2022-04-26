@@ -11,7 +11,7 @@
 .PARAMETER OldCommit
     An alias of the commit to compare to, such as its partial or full hash or e.g. HEAD~1, which is the default
 .PARAMETER FileName
-    The name (without extension) of the main .tex to compile. Defaults to Report
+    The name (without extension) of the main .tex to compile. Defaults to Main
 .PARAMETER Old
     The name (without extension) of the expanded .tex and .pdf of the given commit version. Defaults to OLD_EXPANDED
 .PARAMETER New
@@ -23,7 +23,7 @@
 #>
 param(
     [string]$OldCommit = 'HEAD~1',
-    [string]$FileName = 'Report',
+    [string]$FileName = 'Main',
     [string]$Old = 'OLD_EXPANDED',
     [string]$New = 'NEW_EXPANDED',
     [string]$Diff = 'DIFF_EXPANDED'

@@ -12,7 +12,7 @@
 .PARAMETER OldVersion
     The integer number representing the name of the stored old version to compare the current state with (or at most an integer followed by letters, indicating a minor version, e.g. 3b). Defaults to the latest integer version in the $ProgressFolder folder, making the output the next integer
 .PARAMETER FileName
-    The name (without extension) of the main .tex to compile. Defaults to Report
+    The name (without extension) of the main .tex to compile. Defaults to Main
 .PARAMETER ProgressFolder
     The name of the folder in which past versions (and their comparisons) are stored; created if not present
 .PARAMETER New
@@ -21,6 +21,8 @@
     The TEMPORARY name (without extension) of the expanded .tex and .pdf of the differences between old and new versions; the output placed in $ProgressFolder is renamed to v${OldVersion}to\d+, where the integer is one more than the integer of the old version. Defaults to DIFF_EXPANDED
 .PARAMETER ShowPdf
     Open the output (diff) pdf in the default pdf reader
+.PARAMETER SuppressDiff
+    Do not generate the diff .tex (nor .pdf), i.e. just save the current version's single-.tex-script and .pdf to the $ProgressFolder
 .EXAMPLE
     Letting all arguments handle themselves is recommended:    
     PS> compile_diff.ps1
@@ -29,11 +31,12 @@
 #>
 param(
     [parameter(Mandatory = $false)][string]$OldVersion,
-    [string]$FileName = 'Report',
+    [string]$FileName = 'Main',
     [string]$ProgressFolder = 'Progress',
     [string]$New = 'NEW_EXPANDED',
     [string]$Diff = 'DIFF_EXPANDED',
-    [switch]$ShowPdf = $False
+    [switch]$ShowPdf = $false,
+    [switch]$SuppressDiff = $false
 )
 
 function save_as_v1 {
@@ -42,6 +45,31 @@ function save_as_v1 {
     & .\compile.ps1 -FileName $New -Cleanup
     'tex', 'pdf' | ForEach-Object { Move-Item "$New.$_" -Destination "$ProgressFolder\v1.$_" }
 }
+
+function generate_compile_and_store {
+    param (
+        [string]$TempName, # Script-scope: either $New or $Diff
+        [string]$FinalName, # Local-scope: either $NewName or $DiffName
+        [string]$DiffFromName = $null, # Either null (for latexpand instead of latexdiff) or local-scope $Old
+        [string]$DiffToName = $null # Either null (for latexpand instead of latexdiff) or local-scope "$ProgressFolder\$NewName"
+    )
+    Write-Output "`n`nThe temporary name $TempName will be used for the current document during compilation; renaming will occur when moving to the $ProgressFolder folder"
+
+    if ($DiffFromName) {
+        Write-Output "`nGenerating diff document $Diff.tex from $DiffFromName.tex`n"
+        latexdiff -t CTRADITIONAL "$DiffFromName.tex" "$DiffToName.tex" > "$Diff.tex"
+    } else {
+        Write-Output "`nGenerating single-file $TempName.tex`n"
+        latexpand "$FileName.tex" > "$TempName.tex"
+    }
+
+    Write-Output "Compiling and $TempName.tex to $FinalName.pdf`n`n"
+    & .\compile.ps1 -FileName $TempName -Cleanup
+
+    Write-Output "`n`nMoving $TempName .tex and .pdf files to $ProgressFolder folder, renamed to $FinalName"
+    'tex', 'pdf' | ForEach-Object { Move-Item "$TempName.$_" -Destination "$ProgressFolder\$FinalName.$_" }
+}
+
 
 if (Test-Path $ProgressFolder -PathType Container) {
     $PastVersions = Get-ChildItem $ProgressFolder -Filter '*.tex' | Where-Object { $_.Name -match 'v\d+.tex' }
@@ -66,21 +94,9 @@ if (Test-Path $ProgressFolder -PathType Container) {
         $DiffName = "v${OldVersion}to$($OldInt+1)"
 
         if (Test-Path "$Old.tex") {
-            Write-Output "The temporary names $New and $Diff will be used for the current and differences documents during compilation; renaming will occur when moving to the $ProgressFolder folder"
-
-            Write-Output "`nCreating $New.tex and $New.pdf`n"
-            latexpand "$FileName.tex" > "$New.tex"
-            & .\compile.ps1 -FileName $New -Cleanup
-
-            Write-Output "`nGenerating diff documents $Diff.tex and $Diff.pdf from $Old.tex`n"
-            latexdiff -t CTRADITIONAL "$Old.tex" "$New.tex" > "$Diff.tex"
-            & .\compile.ps1 -FileName $Diff -Cleanup
-            
-            Write-Output "`nMoving $New and $Diff .tex and .pdf files to $ProgressFolder folder, renamed to $NewName and $DiffName"
-            'tex', 'pdf' | ForEach-Object { Move-Item "$New.$_" -Destination "$ProgressFolder\$NewName.$_" }
-            'tex', 'pdf' | ForEach-Object { Move-Item "$Diff.$_" -Destination "$ProgressFolder\$DiffName.$_" }
-
-            if ($ShowPdf) { Start-Process "$ProgressFolder\$DiffName.pdf" }
+            generate_compile_and_store $New $NewName
+            if (!$SuppressDiff) { generate_compile_and_store $Diff $DiffName $Old "$ProgressFolder\$NewName" }
+            if ($ShowPdf -and !$SuppressDiff) { Start-Process "$ProgressFolder\$DiffName.pdf" }
         } else { Write-Output "$Old.tex not found; try latest version (v$LatestVersion) instead" }
     }
 } else {
